@@ -9,10 +9,10 @@
 
 ## Phase 1 — MVP: "prove identity → establish presence"
 
-- [ ] **DID auth** — existing sovereign login handshake (challenge → sign → verify → session). Human authenticates as their own DID.
-- [ ] **Idle presence surface** — post-auth, the presence glyph (spinning logo), idle. Framed as the first object in the scene.
-- [ ] **Shell/domain seam documented** — the interface where a vertical's intent vocabulary plugs in, real even in the MVP.
-- [ ] **Security invariant enforced** — unauthed sees static DID-login only; agent backend connects only post-session, server-layer gate (not client redirect).
+- [x] **DID auth** — existing sovereign login handshake (challenge → sign → verify → session). Human authenticates as their own DID.
+- [x] **Idle presence surface** — post-auth, the presence glyph (spinning logo), idle. Framed as the first object in the scene.
+- [x] **Shell/domain seam documented** — the interface where a vertical's intent vocabulary plugs in, real even in the MVP.
+- [x] **Security invariant enforced** — unauthed sees static DID-login only; agent backend connects only post-session, server-layer gate (not client redirect).
 
 **MVP DoD:** a human authenticates with their DID → lands on a live idle presence surface on dev; the shell/domain seam is a documented interface.
 

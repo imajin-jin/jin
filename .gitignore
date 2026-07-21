@@ -12,6 +12,7 @@ node_modules/
 dist/
 build/
 .expo/
+web-build/
 *.tsbuildinfo
 
 # native
@@ -19,6 +20,11 @@ ios/Pods/
 android/.gradle/
 android/app/build/
 *.keystore
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
 
 # logs
 *.log
@@ -31,3 +37,11 @@ yarn-error.*
 .idea/
 .vscode/
 *.swp
+*.pem
+
+# Expo
+expo-env.d.ts
+
+# generated native folders
+/ios
+/android

@@ -55,6 +55,26 @@ The honest first thing; the forkable skeleton. No actions, connectors, or gestur
 > Port pair `3402 / 7402` — next free client pair after fixready (3400/7400) and karaoke (3401/7401). See imajin-ai `TOOLS.md`.
 > **Note on `prod-jin` vs `prod-jin-app`:** the kernel front-door process is `prod-jin`/`dev-jin` (imajin-ai monorepo). This app's process is named `prod-jin-app`/`dev-jin-app` to avoid the collision.
 
+## Running the Expo app
+
+```bash
+# Install dependencies
+npm install
+
+# Copy environment
+cp .env.example .env.local
+# Edit .env.local — set EXPO_PUBLIC_KERNEL_URL if not using the dev default
+
+# Start the dev server
+npx expo start
+# Or: npm run ios / npm run android / npm run web
+
+# Typecheck
+npm run typecheck
+```
+
+**Required:** `react-native-get-random-values` is imported at the top of `app/_layout.tsx` to polyfill `getRandomValues` before `@noble/ed25519` is loaded. This is load-bearing — without it, key derivation will throw on native.
+
 ## Contributing
 
 Fork-and-PR is the standard (see imajin-ai `AGENTS.md`). Work from your own fork under your own GitHub identity; open PRs into `ima-jin/jin:main`. No feature branches on the org repo.
