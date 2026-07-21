@@ -7,20 +7,36 @@ on:
     branches: [main]
 
 jobs:
+  # Job name stays `lint` — it is the required status check on main.
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # CI stub for the bootstrap. Real steps (install, typecheck, test, expo build)
-      # land with the MVP (Phase 1). This job exists so the branch protection /
-      # required-check wiring is in place from commit one and fails LOUD, not silent.
-      - name: Bootstrap sanity check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Scaffold sanity check
         run: |
           set -euo pipefail
-          echo "Jin app shell — CI bootstrap stub."
           test -f README.md
           test -f .env.example
           test -f LICENSE
           test -f docs/DEFINITION-OF-DONE.md
-          echo "Scaffold present. OK."
+          test -f docs/vision/agentic-dashboard.md
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Proves the app bundles under Metro without a device. Native builds
+      # (EAS) are not wired yet — see docs/DEFINITION-OF-DONE.md Phase 1.
+      - name: Export (web)
+        run: npx expo export --platform web --output-dir /tmp/jin-web-export

@@ -69,11 +69,17 @@ cp .env.example .env.local
 npx expo start
 # Or: npm run ios / npm run android / npm run web
 
-# Typecheck
-npm run typecheck
+# Typecheck + unit tests (what CI runs)
+npm run check
 ```
 
 **Required:** `react-native-get-random-values` is imported at the top of `app/_layout.tsx` to polyfill `getRandomValues` before `@noble/ed25519` is loaded. This is load-bearing — without it, key derivation will throw on native.
+
+**Load-bearing auth detail:** the kernel verifies the login signature over the challenge **hex string as UTF-8 bytes**, not the decoded bytes. `src/auth/__tests__/crypto.test.ts` pins this.
+
+## Where it's going — the agentic dashboard
+
+Today's kernel `/jin` is the engine bay: every panel is a projection of a kernel primitive. The app this repo grows into is the dashboard over it — one presence glyph, a **NOW** lane (what the agent is doing), a **NEEDS YOU** lane (typed cards waiting on your countersign), and a **RECORD** lane (what it did, joined to the card that authorized it). Sketches, the mapping from today's panels, and what carried forward from the Phase 1 PR: [docs/vision/agentic-dashboard.md](./docs/vision/agentic-dashboard.md). Epic: [#1](https://github.com/ima-jin/jin/issues/1).
 
 ## Contributing
 

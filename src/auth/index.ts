@@ -1,17 +1,25 @@
 /**
  * Auth module — DID challenge-response login.
  *
- * Ports the PROVEN handshake from spike/did-auth-roundtrip.mjs.
- * CRITICAL: signs the challenge HEX STRING as UTF-8 bytes (NOT decoded hex).
+ * The handshake is the kernel's own (`apps/kernel/app/auth/api/login/*`):
+ *   1. POST /auth/api/login/challenge { did } → { challengeId, challenge }
+ *   2. sign the challenge HEX STRING as UTF-8 bytes (NOT decoded hex)
+ *   3. POST /auth/api/login/verify { challengeId, signature } → session cookie
+ *
+ * Step 2 is the load-bearing detail; `src/auth/__tests__/crypto.test.ts`
+ * pins it. The kernel sets an httpOnly cookie and returns the identity
+ * summary; there is no bearer token to store, so the session here is the
+ * identity summary plus when it was established.
  */
 
 import * as SecureStore from 'expo-secure-store';
+import { KERNEL_URL } from '../config';
 import { deriveDidFromPrivateKey, signChallenge } from './crypto';
-
-const KERNEL_URL = process.env.EXPO_PUBLIC_KERNEL_URL ?? 'https://dev-jin.imajin.ai';
 
 const STORAGE_KEY_PRIVATE = 'jin_private_key';
 const STORAGE_KEY_SESSION = 'jin_session';
+
+const PRIVATE_KEY_HEX = /^[0-9a-fA-F]{64}$/;
 
 export interface LoginResult {
   success: boolean;
@@ -20,70 +28,82 @@ export interface LoginResult {
   mfaRequired?: boolean;
 }
 
+/** What the kernel returns from `verify` on success. */
 export interface Session {
   did: string;
-  /** Opaque session token returned by the kernel */
-  token: string;
+  handle?: string;
+  scope?: string;
+  subtype?: string;
+  name?: string;
+  /** ISO timestamp of the verified login. */
+  authedAt: string;
+}
+
+interface ChallengeResponse {
+  challengeId: string;
+  challenge: string;
+}
+
+interface VerifyResponse {
+  did?: string;
+  handle?: string;
+  scope?: string;
+  subtype?: string;
+  name?: string;
+  error?: string;
+  mfaRequired?: boolean;
+}
+
+async function postJson(path: string, body: unknown): Promise<Response> {
+  return fetch(`${KERNEL_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 /**
- * Perform DID challenge-response login.
- *
- * 1. POST /auth/api/login/challenge { did }
- * 2. Sign challenge hex string as UTF-8 bytes
- * 3. POST /auth/api/login/verify { challengeId, signature }
- * 4. On success, persist private key + session to SecureStore
+ * Perform DID challenge-response login and persist the key + session to
+ * SecureStore (never AsyncStorage / localStorage).
  */
 export async function login(privHex: string): Promise<LoginResult> {
-  if (!/^[0-9a-fA-F]{64}$/.test(privHex)) {
+  if (!PRIVATE_KEY_HEX.test(privHex)) {
     return { success: false, error: 'Invalid private key format. Must be 64 hex characters.' };
   }
 
   const did = await deriveDidFromPrivateKey(privHex);
 
-  // 1. Challenge
-  const challengeRes = await fetch(`${KERNEL_URL}/auth/api/login/challenge`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ did }),
-  });
-
+  const challengeRes = await postJson('/auth/api/login/challenge', { did });
   if (!challengeRes.ok) {
     const errText = await challengeRes.text().catch(() => 'Unknown error');
     return { success: false, error: `Challenge failed (${challengeRes.status}): ${errText}` };
   }
+  const { challengeId, challenge } = (await challengeRes.json()) as ChallengeResponse;
 
-  const { challengeId, challenge } = await challengeRes.json();
-
-  // 2. Sign — the challenge HEX STRING as UTF-8 bytes (load-bearing detail)
   const signature = await signChallenge(privHex, challenge);
 
-  // 3. Verify
-  const verifyRes = await fetch(`${KERNEL_URL}/auth/api/login/verify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ challengeId, signature }),
-  });
-
-  const verifyData = await verifyRes.json().catch(() => ({}));
+  const verifyRes = await postJson('/auth/api/login/verify', { challengeId, signature });
+  const verifyData = (await verifyRes.json().catch(() => ({}))) as VerifyResponse;
 
   if (!verifyRes.ok) {
-    return {
-      success: false,
-      error: verifyData.error || `Verify failed (${verifyRes.status})`,
-    };
+    return { success: false, error: verifyData.error ?? `Verify failed (${verifyRes.status})` };
   }
-
   if (verifyData.mfaRequired) {
-    return { success: false, mfaRequired: true, error: 'MFA not supported in MVP yet' };
+    return { success: false, mfaRequired: true, error: 'MFA is not supported in this build yet.' };
   }
 
-  // 4. Persist — NEVER use AsyncStorage/localStorage for keys
-  const session: Session = { did, token: verifyData.token ?? '' };
+  const session: Session = {
+    did: verifyData.did ?? did,
+    handle: verifyData.handle,
+    scope: verifyData.scope,
+    subtype: verifyData.subtype,
+    name: verifyData.name,
+    authedAt: new Date().toISOString(),
+  };
   await SecureStore.setItemAsync(STORAGE_KEY_PRIVATE, privHex);
   await SecureStore.setItemAsync(STORAGE_KEY_SESSION, JSON.stringify(session));
 
-  return { success: true, did };
+  return { success: true, did: session.did };
 }
 
 /** Check if a session exists in secure storage. */

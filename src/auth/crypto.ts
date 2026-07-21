@@ -1,7 +1,7 @@
 /**
  * Crypto helpers for DID auth.
  *
- * Ports the PROVEN recipe from spike/did-auth-roundtrip.mjs:
+ * The recipe is the kernel's own (`KeyAuthTab.tsx`), pinned by `__tests__/crypto.test.ts`:
  * - @noble/ed25519 with sha512 sync shim
  * - base58 encoding for DIDs
  * - hex <-> bytes conversion
@@ -17,7 +17,7 @@ import { sha512 } from '@noble/hashes/sha2.js';
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
 export function base58Encode(bytes: Uint8Array): string {
-  let num = BigInt('0x' + Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join(''));
+  let num = bytes.length === 0 ? 0n : BigInt('0x' + bytesToHex(bytes));
   let encoded = '';
   while (num > 0n) {
     const remainder = Number(num % 58n);

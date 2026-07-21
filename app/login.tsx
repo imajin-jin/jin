@@ -9,7 +9,7 @@
  * - File import: JSON backup with { keypair: { privateKey } } or { privateKey }
  * - Paste: raw 64-character hex private key
  *
- * Styling: amber (#F59E0B) on black, matching the Imajin auth vibe.
+ * Styling: amber (#F59E0B) on black — the orb's colour, not the lens's.
  */
 
 import { useState, useCallback } from 'react';
@@ -20,7 +20,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
@@ -47,9 +46,9 @@ export default function LoginScreen() {
           await refresh();
           router.replace('/');
         } else if (result.mfaRequired) {
-          setError('MFA not supported in MVP yet');
+          setError(result.error ?? 'MFA is not supported in this build yet.');
         } else {
-          setError(result.error || 'Login failed');
+          setError(result.error ?? 'Login failed');
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unexpected error');
@@ -79,7 +78,7 @@ export default function LoginScreen() {
       const response = await fetch(file.uri);
       const text = await response.text();
       const data = JSON.parse(text) as { keypair?: { privateKey?: string }; privateKey?: string };
-      const privateKey = data.keypair?.privateKey || data.privateKey;
+      const privateKey = data.keypair?.privateKey ?? data.privateKey;
 
       if (!privateKey || typeof privateKey !== 'string') {
         setError('Invalid backup file format. Missing privateKey.');

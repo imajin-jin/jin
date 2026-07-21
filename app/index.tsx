@@ -1,87 +1,64 @@
 /**
- * Idle presence surface — the first object in the scene.
+ * The presence surface — vision §2a, "Jin is here."
  *
- * Post-auth, Jin is *there*: the presence glyph (spinning/pulsing orb),
- * idle. Framed as "the first object in the world" so the scene model
- * is real from commit one.
+ * Post-auth, Jin is *there*: the presence glyph (breathing amber orb) and
+ * one line of state. This is the first object in the scene and, in the
+ * agentic dashboard, the whole front page while nothing is pending and
+ * nothing is running. NOW / NEEDS YOU / RECORD mount around it as the
+ * agent backend lands (jin#2; docs/vision/agentic-dashboard.md §2b–2c).
  *
- * This is the shell/domain seam — `listActiveObjects()` returns the
- * presence object. A vertical fork plugs its intent vocabulary into
- * the composition layer here.
- *
- * SERVER-LAYER GATE: the agent backend refuses connection without a
- * valid session. This is enforced server-side (jin#2), not a client
- * redirect. MVP has no agent backend yet.
+ * The glyph is a status, not a splash: the breath is the tell.
  */
 
 import { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { listActiveObjects } from '@/src/types/object';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { findPresence, listActiveObjects, presenceLabel } from '@/src/scene/objects';
+
+const BREATH_MS = 2000;
+const SPIN_MS = 12000;
 
 export default function PresenceScreen() {
   const pulse = useRef(new Animated.Value(1)).current;
   const rotate = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Pulsing scale animation
-    const pulseAnim = Animated.loop(
+    const breath = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1.15,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
+        Animated.timing(pulse, { toValue: 1.15, duration: BREATH_MS, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: BREATH_MS, useNativeDriver: true }),
+      ]),
     );
-    pulseAnim.start();
-
-    // Slow rotation animation
-    const rotateAnim = Animated.loop(
-      Animated.timing(rotate, {
-        toValue: 1,
-        duration: 12000,
-        useNativeDriver: true,
-      })
+    const spin = Animated.loop(
+      Animated.timing(rotate, { toValue: 1, duration: SPIN_MS, useNativeDriver: true }),
     );
-    rotateAnim.start();
-
+    breath.start();
+    spin.start();
     return () => {
-      pulseAnim.stop();
-      rotateAnim.stop();
+      breath.stop();
+      spin.stop();
     };
   }, [pulse, rotate]);
 
-  const spin = rotate.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
+  const spinDeg = rotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
 
-  const objects = listActiveObjects();
-  const presence = objects.find((o) => o.kind === 'presence');
+  const presence = findPresence(listActiveObjects());
+  const state = presence?.state ?? 'idle';
 
   return (
     <View style={styles.container}>
       <Animated.View
-        style={[
-          styles.orbContainer,
-          { transform: [{ scale: pulse }, { rotate: spin }] },
-        ]}
+        style={[styles.orbContainer, { transform: [{ scale: pulse }, { rotate: spinDeg }] }]}
+        accessibilityRole="image"
+        accessibilityLabel={`Presence: ${state}`}
       >
         <View style={styles.orbOuter}>
           <View style={styles.orbInner} />
         </View>
       </Animated.View>
 
-      <Text style={styles.presenceText}>Jin is here.</Text>
+      <Text style={styles.presenceText}>{presenceLabel(state)}</Text>
 
-      {presence ? (
-        <Text style={styles.debugId}>obj://{presence.id}</Text>
-      ) : null}
+      {presence ? <Text style={styles.objectId}>obj://{presence.id}</Text> : null}
     </View>
   );
 }
@@ -125,7 +102,7 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
     letterSpacing: 1,
   },
-  debugId: {
+  objectId: {
     fontSize: 12,
     color: '#374151',
     fontFamily: 'monospace',
